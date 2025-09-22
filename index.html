@@ -308,7 +308,7 @@
   function showSlider(){ clearHideTimer(); volumeSlider.classList.add("show"); }
   function hideSliderImmediate(){ clearHideTimer(); volumeSlider.classList.remove("show"); }
 
-  // Al cargar la página, establece la canción predeterminada
+  // Establecer la canción inicial al cargar la página
   window.addEventListener('load', () => {
     bgMusic.src = songSelector.value;
   });
