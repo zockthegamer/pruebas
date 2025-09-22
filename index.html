@@ -41,6 +41,7 @@
     .corazon{position:absolute;font-size:20px;pointer-events:none;z-index:5;opacity:0.95;}
     canvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:30;}
 
+    /* Contenedor para botón + slider (área "hotspot") */
     .audioControl{
       position: absolute;
       top: 12px;
@@ -50,9 +51,20 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 8px;
-      padding: 6px;
+      padding: 6px; /* aumenta zona de hover */
       border-radius: 12px;
+      /* fondo sutil para que sea más fácil apuntar; puedes quitar si no quieres que se vea */
       background: rgba(255,255,255,0.02);
+    }
+    .song-selector {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        background-color: white;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+        color: #555;
     }
 
     .mutebtn{
@@ -64,6 +76,7 @@
       user-select:none;
     }
 
+    /* --- Slider oculto por defecto --- */
     .volumeSlider{
       width:140px;
       opacity:0;
@@ -78,6 +91,7 @@
       transform: translateY(0);
     }
 
+    /* Estilo rápido para el slider */
     .volumeSlider::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,#ff69b4,#ffd27d);}
     .volumeSlider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);margin-top:-4px;}
     .volumeSlider::-moz-range-track{height:6px;border-radius:6px;background:linear-gradient(90deg,#ff69b4,#ffd27d);}
@@ -88,6 +102,7 @@
       .volumeSlider{width:100px;}
     }
 
+    /* Modal de foto/video */
     .lightbox {
       display: none;
       position: fixed;
@@ -123,13 +138,12 @@
   <div class="contador" id="contador">Días juntos: 0</div>
 
   <div id="audioControl" class="audioControl" aria-hidden="false">
-    <select id="songSelector">
+    <div class="mutebtn" id="mutebtn">🔈 Música: silenciada</div>
+    <select id="songSelector" class="song-selector" aria-label="Seleccionar canción">
       <option value="viernes13.mp3">Viernes 13</option>
       <option value="jueves12.mp3">Jueves 12</option>
       <option value="miercoles11.mp3">Miércoles 11</option>
     </select>
-
-    <div class="mutebtn" id="mutebtn">🔈 Música: silenciada</div>
     <input id="volumeSlider" class="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volumen">
   </div>
 
@@ -152,9 +166,7 @@
   </div>
   <canvas id="confetti"></canvas>
 
-  <audio id="bgMusic" loop>
-    <source src="viernes13.mp3" type="audio/mpeg">
-  </audio>
+  <audio id="bgMusic" loop></audio>
 
   <div class="lightbox" id="lightbox">
     <span class="lightbox-close" id="lightbox-close">&times;</span>
@@ -277,19 +289,14 @@
     },600);
   }
 
+  // --- Control de música y slider mejorado ---
   const audioControl = document.getElementById("audioControl");
   const mutebtn = document.getElementById("mutebtn");
   const bgMusic = document.getElementById("bgMusic");
   const volumeSlider = document.getElementById("volumeSlider");
   const songSelector = document.getElementById("songSelector");
 
-  songSelector.addEventListener("change", () => {
-    const newSong = songSelector.value;
-    bgMusic.src = newSong;
-    bgMusic.play().catch(()=>{});
-    mutebtn.textContent = "🔊 Música: reproduciendo";
-  });
-
+  // Temporizador para ocultar el slider después de que el mouse salga
   let hideTimer = null;
   function clearHideTimer(){ if(hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
   function scheduleHide(ms = 1500){
@@ -301,9 +308,26 @@
   function showSlider(){ clearHideTimer(); volumeSlider.classList.add("show"); }
   function hideSliderImmediate(){ clearHideTimer(); volumeSlider.classList.remove("show"); }
 
+  // Al cargar la página, establece la canción predeterminada
+  window.addEventListener('load', () => {
+    bgMusic.src = songSelector.value;
+  });
+
+  // Listener para el selector de canciones
+  songSelector.addEventListener("change", (event) => {
+    const newSong = event.target.value;
+    bgMusic.src = newSong;
+    bgMusic.load();
+    bgMusic.play().catch(()=>{/* Manejo de errores de autoplay */});
+    mutebtn.textContent = "🔊 Música: reproduciendo";
+    showSlider();
+    scheduleHide(3000);
+  });
+  
+  // Click en el botón de música: reproduce / pausa
   mutebtn.addEventListener("click", () => {
     if (bgMusic.paused) {
-      bgMusic.play().catch(()=>{});
+      bgMusic.play().catch(()=>{/* autoplay puede fallar en navegadores; usuario debe interactuar */});
       mutebtn.textContent = "🔊 Música: reproduciendo";
       showSlider();
       scheduleHide(3000);
@@ -314,6 +338,7 @@
     }
   });
 
+  // Si reproducen/pausan el audio por otros medios, sincronizamos el texto y el slider
   bgMusic.addEventListener("play", ()=> {
     mutebtn.textContent = "🔊 Música: reproduciendo";
   });
@@ -322,6 +347,7 @@
     hideSliderImmediate();
   });
 
+  // Zona "hotspot": si el mouse entra y la música está reproduciéndose, mostramos el slider.
   audioControl.addEventListener("mouseenter", () => {
     if (!bgMusic.paused) {
       showSlider();
@@ -329,17 +355,20 @@
   });
   audioControl.addEventListener("mouseleave", () => {
     if (!bgMusic.paused) {
-      scheduleHide(1200);
+      scheduleHide(1200); // pequeño retraso antes de ocultar
     }
   });
 
+  // Si el usuario interactúa el slider, no lo esconderemos hasta que salga
   volumeSlider.addEventListener("mouseenter", () => { clearHideTimer(); showSlider(); });
   volumeSlider.addEventListener("mouseleave", () => { if (!bgMusic.paused) scheduleHide(1200); });
 
+  // Control del volumen real
   volumeSlider.addEventListener("input", () => {
     bgMusic.volume = parseFloat(volumeSlider.value);
   });
 
+  // Lightbox
   const lightbox=document.getElementById("lightbox");
   const lightboxImg=document.getElementById("lightbox-img");
   const lightboxVideo=document.getElementById("lightbox-video");
@@ -371,3 +400,6 @@
       closeBtn.click();
     }
   });
+  </script>
+</body>
+</html>
