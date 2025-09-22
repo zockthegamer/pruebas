@@ -41,7 +41,6 @@
     .corazon{position:absolute;font-size:20px;pointer-events:none;z-index:5;opacity:0.95;}
     canvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:30;}
 
-    /* Contenedor para el control de audio */
     .audioControl{
       position: absolute;
       top: 12px;
@@ -65,7 +64,6 @@
       user-select:none;
     }
 
-    /* Slider de volumen */
     .volumeSlider{
       width:140px;
       opacity:0;
@@ -79,39 +77,17 @@
       pointer-events:auto;
       transform: translateY(0);
     }
+
     .volumeSlider::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,#ff69b4,#ffd27d);}
     .volumeSlider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);margin-top:-4px;}
     .volumeSlider::-moz-range-track{height:6px;border-radius:6px;background:linear-gradient(90deg,#ff69b4,#ffd27d);}
     .volumeSlider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
 
-    /* Selector de pista */
-    .trackSelect{
-      width:150px;
-      opacity:0;
-      pointer-events:none;
-      transform: translateY(-6px);
-      transition: opacity 0.28s ease, transform 0.28s ease;
-      font-weight:600;
-      border-radius:8px;
-      padding:4px 6px;
-      background:rgba(255,255,255,0.9);
-    }
-    .trackSelect.show{
-      opacity:1;
-      pointer-events:auto;
-      transform: translateY(0);
-    }
-
     .footerNote{position:fixed;bottom:8px;left:12px;color:#5b0b22;font-weight:700;opacity:0.85;}
-    @media (max-width:720px){
-      .photo{width:130px;height:90px;}
-      #pregunta{font-size:20px}
-      .btn{font-size:16px;padding:10px 16px;}
+    @media (max-width:720px){.photo{width:130px;height:90px;}#pregunta{font-size:20px}.btn{font-size:16px;padding:10px 16px;}
       .volumeSlider{width:100px;}
-      .trackSelect{width:120px;}
     }
 
-    /* Modal de foto/video */
     .lightbox {
       display: none;
       position: fixed;
@@ -146,15 +122,15 @@
 <body>
   <div class="contador" id="contador">Días juntos: 0</div>
 
-  <!-- Contenedor de controles de audio -->
-  <div id="audioControl" class="audioControl">
-    <div class="mutebtn" id="mutebtn">🔈 Música: silenciada</div>
-    <input id="volumeSlider" class="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volumen">
-    <select id="trackSelect" class="trackSelect" aria-label="Elegir canción">
+  <div id="audioControl" class="audioControl" aria-hidden="false">
+    <select id="songSelector">
       <option value="viernes13.mp3">Viernes 13</option>
       <option value="jueves12.mp3">Jueves 12</option>
       <option value="miercoles11.mp3">Miércoles 11</option>
     </select>
+
+    <div class="mutebtn" id="mutebtn">🔈 Música: silenciada</div>
+    <input id="volumeSlider" class="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volumen">
   </div>
 
   <div class="stage" id="stage">
@@ -176,12 +152,10 @@
   </div>
   <canvas id="confetti"></canvas>
 
-  <!-- Audio -->
   <audio id="bgMusic" loop>
     <source src="viernes13.mp3" type="audio/mpeg">
   </audio>
 
-  <!-- Lightbox -->
   <div class="lightbox" id="lightbox">
     <span class="lightbox-close" id="lightbox-close">&times;</span>
     <img id="lightbox-img" class="lightbox-content" />
@@ -303,48 +277,97 @@
     },600);
   }
 
-  // --- Controles de audio ---
   const audioControl = document.getElementById("audioControl");
   const mutebtn = document.getElementById("mutebtn");
   const bgMusic = document.getElementById("bgMusic");
   const volumeSlider = document.getElementById("volumeSlider");
-  const trackSelect = document.getElementById("trackSelect");
+  const songSelector = document.getElementById("songSelector");
 
-  let hideTimer=null;
-  function clearHideTimer(){ if(hideTimer){clearTimeout(hideTimer); hideTimer=null;} }
-  function scheduleHide(ms=1500){ clearHideTimer(); hideTimer=setTimeout(()=>{ volumeSlider.classList.remove("show"); trackSelect.classList.remove("show"); }, ms); }
-  function showControls(){ clearHideTimer(); volumeSlider.classList.add("show"); trackSelect.classList.add("show"); }
+  songSelector.addEventListener("change", () => {
+    const newSong = songSelector.value;
+    bgMusic.src = newSong;
+    bgMusic.play().catch(()=>{});
+    mutebtn.textContent = "🔊 Música: reproduciendo";
+  });
+
+  let hideTimer = null;
+  function clearHideTimer(){ if(hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+  function scheduleHide(ms = 1500){
+    clearHideTimer();
+    hideTimer = setTimeout(()=>{
+      volumeSlider.classList.remove("show");
+    }, ms);
+  }
+  function showSlider(){ clearHideTimer(); volumeSlider.classList.add("show"); }
+  function hideSliderImmediate(){ clearHideTimer(); volumeSlider.classList.remove("show"); }
 
   mutebtn.addEventListener("click", () => {
     if (bgMusic.paused) {
       bgMusic.play().catch(()=>{});
       mutebtn.textContent = "🔊 Música: reproduciendo";
-      showControls();
+      showSlider();
       scheduleHide(3000);
     } else {
       bgMusic.pause();
       mutebtn.textContent = "🔈 Música: silenciada";
-      volumeSlider.classList.remove("show");
-      trackSelect.classList.remove("show");
+      hideSliderImmediate();
     }
   });
 
+  bgMusic.addEventListener("play", ()=> {
+    mutebtn.textContent = "🔊 Música: reproduciendo";
+  });
   bgMusic.addEventListener("pause", ()=> {
     mutebtn.textContent = "🔈 Música: silenciada";
-    volumeSlider.classList.remove("show");
-    trackSelect.classList.remove("show");
+    hideSliderImmediate();
   });
 
-  audioControl.addEventListener("mouseenter", ()=>{ if(!bgMusic.paused) showControls(); });
-  audioControl.addEventListener("mouseleave", ()=>{ if(!bgMusic.paused) scheduleHide(1200); });
-  volumeSlider.addEventListener("input", ()=>{ bgMusic.volume=parseFloat(volumeSlider.value); });
-
-  // Cambio de canción
-  trackSelect.addEventListener("change", ()=>{
-    const newTrack = trackSelect.value;
-    bgMusic.src = newTrack;
-    if (!bgMusic.paused) bgMusic.play();
+  audioControl.addEventListener("mouseenter", () => {
+    if (!bgMusic.paused) {
+      showSlider();
+    }
+  });
+  audioControl.addEventListener("mouseleave", () => {
+    if (!bgMusic.paused) {
+      scheduleHide(1200);
+    }
   });
 
-  // Lightbox
-  const lightbox=document.getElementById("lightbox
+  volumeSlider.addEventListener("mouseenter", () => { clearHideTimer(); showSlider(); });
+  volumeSlider.addEventListener("mouseleave", () => { if (!bgMusic.paused) scheduleHide(1200); });
+
+  volumeSlider.addEventListener("input", () => {
+    bgMusic.volume = parseFloat(volumeSlider.value);
+  });
+
+  const lightbox=document.getElementById("lightbox");
+  const lightboxImg=document.getElementById("lightbox-img");
+  const lightboxVideo=document.getElementById("lightbox-video");
+  const closeBtn=document.getElementById("lightbox-close");
+
+  function openLightbox(type,src){
+    lightbox.style.display="flex";
+    if(type==="img"){
+      lightboxImg.style.display="block";
+      lightboxVideo.style.display="none";
+      lightboxImg.src=src;
+    } else {
+      lightboxImg.style.display="none";
+      lightboxVideo.style.display="block";
+      lightboxVideo.src=src;
+      lightboxVideo.play();
+    }
+  }
+
+  closeBtn.addEventListener("click",()=>{
+    lightbox.style.display="none";
+    lightboxImg.src="";
+    lightboxVideo.pause();
+    lightboxVideo.src="";
+  });
+
+  lightbox.addEventListener("click",(e)=>{
+    if(e.target===lightbox){
+      closeBtn.click();
+    }
+  });
